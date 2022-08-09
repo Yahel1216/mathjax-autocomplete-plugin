@@ -1,4 +1,4 @@
-# Obsidian Sample Plugin
+# Obsidian Mathjax Auto-Complete Plugin
 
 This is a sample plugin for Obsidian (https://obsidian.md).
 
