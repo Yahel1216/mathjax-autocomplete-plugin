@@ -2,7 +2,6 @@ import {App, Editor, EditorSuggest, MarkdownView, Modal, Notice, Plugin, PluginS
 import { MathJaxAutoSettings, DEFAULT_SETTINGS } from 'lib/settings'
 import {MathJaxAutoState, MathJaxAutoStateInterface} from 'lib/state'
 import {MathjaxSuggest} from "./lib/mathjax-suggest";
-// Remember to rename these classes and interfaces!
 
 export default class MyPlugin extends Plugin {
 	settings: MathJaxAutoSettings;
