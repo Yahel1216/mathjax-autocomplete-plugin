@@ -1,14 +1,19 @@
 
+interface Suggestion {
+	name: string;
+	subs: number;
+	rank?: number;
+}
+
 interface MathJaxAutoSettings {
-	acDefaultSuggestionsLocation: string;
-	userAddedSuggestionsLocation: string;
+	suggestionList: Suggestion[];
 	addUserCommands: boolean;
 	userCommandsPriority?: number;
 }
 
+import { suggestions } from './default';
 const DEFAULT_SETTINGS: MathJaxAutoSettings = {
-	acDefaultSuggestionsLocation: './utils/default.json',
-	userAddedSuggestionsLocation: './utils/user.json',
+	suggestionList: suggestions,
 	addUserCommands: true,
 	userCommandsPriority: 1
 }
@@ -17,5 +22,6 @@ export {
 	DEFAULT_SETTINGS
 }
 export type {
-	MathJaxAutoSettings
+	MathJaxAutoSettings,
+	Suggestion
 }

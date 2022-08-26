@@ -1,16 +1,12 @@
 import {App, Editor, EditorSuggest, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting} from 'obsidian';
 import { MathJaxAutoSettings, DEFAULT_SETTINGS } from 'lib/settings'
-import {MathJaxAutoState, MathJaxAutoStateInterface} from 'lib/state'
 import {MathjaxSuggest} from "./lib/mathjax-suggest";
 
 export default class MyPlugin extends Plugin {
 	settings: MathJaxAutoSettings;
-	state: MathJaxAutoStateInterface;
 
 	async onload() {
 		await this.loadSettings();
-		await this.loadState();
-
 		// This adds an editor command that can perform some operation on the current editor instance
 		this.addCommand({
 			id: 'simple-math-mode-command',
@@ -26,15 +22,12 @@ export default class MyPlugin extends Plugin {
 				this.mathModeCommand(editor, false);
 			}
 		});
-		const suggestions = new MathjaxSuggest(this.app);
-		this.registerEditorSuggest(suggestions);
+		const suggestor = new MathjaxSuggest(this.app, this.settings.suggestionList);
+		console.log('Loaded suggestion list', this.settings.suggestionList);
+		this.registerEditorSuggest(suggestor);
 	}
 
 	mathModeCommand (editor: Editor, simple: boolean) {
-		// if (!this.state.enterMathMode()) {
-		// 	// Already in math mode
-		// 	return;
-		// }
 		const replacement = simple ? '$': '$$';
 		const position = editor.getCursor();
 
@@ -44,21 +37,15 @@ export default class MyPlugin extends Plugin {
 		editor.setCursor(position.line, position.ch + replacement.length);
 	}
 
-	onunload() {
-
-	}
-
-	async loadState() {
-		const statusBarItemEl = this.addStatusBarItem();
-		this.state = new MathJaxAutoState (statusBarItemEl);
+	async onunload() {
+		await this.saveSettings();
 	}
 	async loadSettings() {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
 	}
-	//
-	// async saveSettings() {
-	// 	await this.saveData(this.settings);
-	// }
+	async saveSettings() {
+		await this.saveData(this.settings);
+	}
 }
 
 class SampleModal extends Modal {
