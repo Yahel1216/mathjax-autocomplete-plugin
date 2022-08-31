@@ -1,8 +1,8 @@
 import {App, Editor, EditorSuggest, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting} from 'obsidian';
-import { MathJaxAutoSettings, DEFAULT_SETTINGS } from 'lib/settings'
+import {MathJaxAutoSettings, DEFAULT_SETTINGS, Suggestion} from 'lib/settings'
 import {MathjaxSuggest} from "./lib/mathjax-suggest";
 
-export default class MyPlugin extends Plugin {
+export default class MathjaxObsidianPlugin extends Plugin {
 	settings: MathJaxAutoSettings;
 
 	async onload() {
@@ -22,9 +22,11 @@ export default class MyPlugin extends Plugin {
 				this.mathModeCommand(editor, false);
 			}
 		});
-		const suggestor = new MathjaxSuggest(this.app, this.settings.suggestionList);
+		const suggester = new MathjaxSuggest(this.app, this.settings.suggestionList, (s: Suggestion) => {
+			this.settings.suggestionList.push(s);
+		});
 		console.log('Loaded suggestion list', this.settings.suggestionList);
-		this.registerEditorSuggest(suggestor);
+		this.registerEditorSuggest(suggester);
 	}
 
 	mathModeCommand (editor: Editor, simple: boolean) {
@@ -48,18 +50,4 @@ export default class MyPlugin extends Plugin {
 	}
 }
 
-class SampleModal extends Modal {
-	constructor(app: App) {
-		super(app);
-	}
 
-	onOpen() {
-		const {contentEl} = this;
-		contentEl.setText('Woah!');
-	}
-
-	onClose() {
-		const {contentEl} = this;
-		contentEl.empty();
-	}
-}

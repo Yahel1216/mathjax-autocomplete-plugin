@@ -4,7 +4,7 @@ import {
 	EditorPosition,
 	EditorSuggest,
 	EditorSuggestContext,
-	EditorSuggestTriggerInfo,
+	EditorSuggestTriggerInfo, Modal, Setting,
 	TFile
 } from "obsidian";
 import {Suggestion} from "./settings";
@@ -19,45 +19,100 @@ const querySuggestionFilter = (query: string) => {
 }
 const mapSuggestionToName = (s: Suggestion): string => s.name;
 
+function setValue(context: EditorSuggestContext, s: Suggestion) {
+	const to = context.editor.getCursor();
+	const from: EditorPosition = {line: to.line, ch: to.ch - context.query.length};
+	console.log('Inserting...', context.query);
+	context.editor.replaceRange(s.latex, from, to);
+}
 
-class MathjaxSuggest extends EditorSuggest<string> {
-	private _fullSuggestionList: Suggestion[];
-	private _last_query?: string = undefined;
-	private _lastSuggestionList: Suggestion[] = [];
-	private _lastNameList: string[] = [];
+class NewSuggestionModal extends Modal {
+	private _name: string;
+	private _latex: string;
+	onSubmit: (name: string, latex: string) => void;
 
-	constructor(app: App, suggestionList: Suggestion[]) {
+	constructor(app: App, command: string, callback: (name: string, latex: string) => void) {
 		super(app);
-		this._fullSuggestionList = suggestionList.sort(compareSuggestions);
-		this._lastSuggestionList = this._fullSuggestionList;
+		this._name = command;
+		this._latex = "";
+		this.onSubmit = callback;
 	}
 
-    renderSuggestion(value: string, el: HTMLElement): void {
-		el.setText(value);
+	onOpen() {
+		const {contentEl} = this;
+		contentEl.setText("Configure Latex Command/Macro:");
+
+		const commandName = new Setting(contentEl)
+			.setName("Command Name (Macro name):")
+			.addText((text) => text.onChange((value) => {this._name = value}));
+		commandName.settingEl.setText("place");
+
+		const commandLatex = new Setting(contentEl)
+			.setName("Latex command:")
+			.addText((text) => text.onChange((value) => {this._latex = value}));
+		commandName.settingEl.setText("place");
+
+		new Setting(contentEl)
+			.addButton((btn) =>
+				btn
+					.setButtonText("Submit")
+					.setCta()
+					.onClick(() => {
+						this.close();
+						this.onSubmit(this._name, this._latex);
+					}));
+	}
+
+	onClose() {
+		const {contentEl} = this;
+		contentEl.empty();
+	}
+}
+
+class MathjaxSuggest extends EditorSuggest<Suggestion> {
+	private _unchangedSuggestionList: Suggestion[];
+	private _last_query?: string = undefined;
+	private _filteredSuggestionList: Suggestion[] = [];
+	onAddSuggestion: (s: Suggestion) => void;
+	limit = 5;
+
+	constructor(app: App, suggestionList: Suggestion[], onAddSuggestion: (s: Suggestion) => void) {
+		super(app);
+		this._unchangedSuggestionList = suggestionList.sort(compareSuggestions);
+		this._filteredSuggestionList = this._unchangedSuggestionList;
+		this.onAddSuggestion = onAddSuggestion;
+	}
+
+    renderSuggestion(value: Suggestion, el: HTMLElement): void {
+		el.setText(value.name);
     }
-    selectSuggestion(value: string, evt: MouseEvent | KeyboardEvent): void {
-        const selected: Suggestion | undefined = this._lastSuggestionList.find(
-			(s: Suggestion) => s.name == value)
-		if (!selected) {
-			// Todo: add suggestion to list
-		} else if (this.context?.editor) {
-			const to = this.context.editor.getCursor();
-			const from: EditorPosition = {line: to.line, ch: to.ch - this.context.query.length};
-			console.log('Inserting...', this.context.query);
-			// const replacement = `${selected.name}${'{}' * }`
-			this.context.editor.replaceRange(selected.name, from, to);
+
+    selectSuggestion(value: Suggestion, evt: MouseEvent | KeyboardEvent): void {
+		if (value.isNew)
+		{
+			const modal = new NewSuggestionModal(app ,this._last_query, (name: string, latex: string) => {
+				const s: Suggestion = {name: name, latex: latex};
+				this._unchangedSuggestionList.push(s);
+				this.onAddSuggestion(s);
+				this.selectSuggestion(s, evt);
+			});
+			modal.open();
+		}
+		else if (this.context?.editor) {
+			setValue(this.context, value);
 		}
     }
 
-	getSuggestions(context: EditorSuggestContext): string[] | Promise<string[]> {
+	getSuggestions(context: EditorSuggestContext): Suggestion[] | Promise<Suggestion[]> {
 		if (!this._last_query || !context.query.startsWith(this._last_query)) {
 			// The last query is not the prefix of the current query, so we re-filter all suggestions.
-			this._lastSuggestionList = this._fullSuggestionList;
+			this._filteredSuggestionList = this._unchangedSuggestionList;
 		}
-		this._lastSuggestionList = this._lastSuggestionList.filter(querySuggestionFilter(context.query));
-		this._lastNameList = this._lastSuggestionList.map(mapSuggestionToName);
+		this._filteredSuggestionList = this._filteredSuggestionList.filter((suggestion :Suggestion) =>{
+			console.log(suggestion.name.startsWith(context.query));return suggestion.name.startsWith(context.query)});
 		this._last_query = context.query;
-		return this._lastNameList;
+		return this._filteredSuggestionList.length > 0 ? this._filteredSuggestionList :
+			[{name: `add ${context.query}`, latex: "", isNew: true}];
 	}
 
 	onTrigger(cursor: EditorPosition, editor: Editor, file: TFile): EditorSuggestTriggerInfo | null {
@@ -67,7 +122,7 @@ class MathjaxSuggest extends EditorSuggest<string> {
 			return null;
 		}
 		const ofInterest = prefix.substring(start + 1);
-		if (ofInterest.search(/[^\w]/) >= 0) {
+		if (ofInterest.search(/[^a-zA-Z]/) >= 0) {
 			return null;
 		}
 		const result: EditorSuggestTriggerInfo = {

@@ -1,8 +1,9 @@
 
 interface Suggestion {
 	name: string;
-	subs: number;
+	latex: string,
 	rank?: number;
+	isNew?: boolean;
 }
 
 interface MathJaxAutoSettings {
