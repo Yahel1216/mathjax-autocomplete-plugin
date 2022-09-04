@@ -4,6 +4,8 @@ import {MathjaxSuggest} from "./lib/mathjax-suggest";
 
 export default class MathjaxObsidianPlugin extends Plugin {
 	settings: MathJaxAutoSettings;
+	statusBarElem: HTMLElement;
+	isInMathMode: boolean = false;
 
 	async onload() {
 		await this.loadSettings();
@@ -22,14 +24,31 @@ export default class MathjaxObsidianPlugin extends Plugin {
 				this.mathModeCommand(editor, false);
 			}
 		});
-		const suggester = new MathjaxSuggest(this.app, this.settings.suggestionList, (s: Suggestion) => {
+		this.statusBarElem = this.addStatusBarItem();
+    	this.statusBarElem.createEl("span", { text: "Math Mode: [off]" });
+		const suggester = new MathjaxSuggest(this.app, this.settings.suggestionList, this.statusBarElem, (s: Suggestion) => {
 			this.settings.suggestionList.push(s);
 		});
 		console.log('Loaded suggestion list', this.settings.suggestionList);
 		this.registerEditorSuggest(suggester);
+
+	}
+
+	handleEscape (editor: Editor) {
+		console.log('escape');
+		this.isInMathMode = false;
+		this.statusBarElem.toggleClass('math-mode-on', false);
+		this.statusBarElem.setText("Math Mode: [off]");
+		const moveTo = editor.getLine(editor.getCursor().line).lastIndexOf('$') + 1;
+		editor.setCursor(editor.getCursor().line, moveTo);
 	}
 
 	mathModeCommand (editor: Editor, simple: boolean) {
+		if (this.isInMathMode) {
+			console.log('already in math mode...');
+			this.handleEscape(editor);
+			return;
+		}
 		const replacement = simple ? '$': '$$';
 		const position = editor.getCursor();
 
@@ -37,6 +56,9 @@ export default class MathjaxObsidianPlugin extends Plugin {
 
 		// Move cursor to be in between dollar signs
 		editor.setCursor(position.line, position.ch + replacement.length);
+		this.isInMathMode = true;
+		this.statusBarElem.setText("Math Mode: [on]");
+		this.statusBarElem.toggleClass('math-mode-on', true);
 	}
 
 	async onunload() {

@@ -24,6 +24,10 @@ function setValue(context: EditorSuggestContext, s: Suggestion) {
 	const from: EditorPosition = {line: to.line, ch: to.ch - context.query.length};
 	console.log('Inserting...', context.query);
 	context.editor.replaceRange(s.latex, from, to);
+	if (!context.query)
+	{
+		context.editor.setCursor(to.line, to.ch + s.latex.length);
+	}
 }
 
 class NewSuggestionModal extends Modal {
@@ -40,17 +44,18 @@ class NewSuggestionModal extends Modal {
 
 	onOpen() {
 		const {contentEl} = this;
-		contentEl.setText("Configure Latex Command/Macro:");
+		contentEl.createEl("h2", {text: "Configure Latex Command/Macro:"})
+		// contentEl.setText("Configure Latex Command/Macro:");
 
 		const commandName = new Setting(contentEl)
 			.setName("Command Name (Macro name):")
 			.addText((text) => text.onChange((value) => {this._name = value}));
-		commandName.settingEl.setText("place");
+		// commandName.settingEl.setText("place");
 
 		const commandLatex = new Setting(contentEl)
 			.setName("Latex command:")
 			.addText((text) => text.onChange((value) => {this._latex = value}));
-		commandName.settingEl.setText("place");
+		// commandName.settingEl.setText("place");
 
 		new Setting(contentEl)
 			.addButton((btn) =>
@@ -73,11 +78,13 @@ class MathjaxSuggest extends EditorSuggest<Suggestion> {
 	private _unchangedSuggestionList: Suggestion[];
 	private _last_query?: string = undefined;
 	private _filteredSuggestionList: Suggestion[] = [];
+	private _statusBar: HTMLElement;
 	onAddSuggestion: (s: Suggestion) => void;
 	limit = 5;
 
-	constructor(app: App, suggestionList: Suggestion[], onAddSuggestion: (s: Suggestion) => void) {
+	constructor(app: App, suggestionList: Suggestion[], statusBar: HTMLElement, onAddSuggestion: (s: Suggestion) => void) {
 		super(app);
+		this._statusBar = statusBar
 		this._unchangedSuggestionList = suggestionList.sort(compareSuggestions);
 		this._filteredSuggestionList = this._unchangedSuggestionList;
 		this.onAddSuggestion = onAddSuggestion;
@@ -92,7 +99,6 @@ class MathjaxSuggest extends EditorSuggest<Suggestion> {
 		{
 			const modal = new NewSuggestionModal(app ,this._last_query, (name: string, latex: string) => {
 				const s: Suggestion = {name: name, latex: latex};
-				this._unchangedSuggestionList.push(s);
 				this.onAddSuggestion(s);
 				this.selectSuggestion(s, evt);
 			});
@@ -116,6 +122,10 @@ class MathjaxSuggest extends EditorSuggest<Suggestion> {
 	}
 
 	onTrigger(cursor: EditorPosition, editor: Editor, file: TFile): EditorSuggestTriggerInfo | null {
+		if (this._statusBar.textContent == 'Math Mode: [off]') // ToDo: is there a more elegant way?
+		{
+			return null;
+		}
 		const prefix = editor.getLine(cursor.line).substring(0, cursor.ch);
 		const start = prefix.lastIndexOf('\\');
 		if (start == -1) {
