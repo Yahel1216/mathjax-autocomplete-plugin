@@ -4,6 +4,11 @@ interface Suggestion {
 	latex: string,
 	rank?: number;
 	isNew?: boolean;
+	// showMore?: boolean
+}
+
+interface RankSetting {
+	prompt: string;
 }
 
 interface MathJaxAutoSettings {
@@ -23,6 +28,7 @@ export {
 	DEFAULT_SETTINGS
 }
 export type {
+	RankSetting,
 	MathJaxAutoSettings,
 	Suggestion
 }

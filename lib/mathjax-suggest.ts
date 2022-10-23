@@ -9,9 +9,26 @@ import {
 } from "obsidian";
 import {Suggestion} from "./settings";
 
+const suggestLimit = 5;
+
 const compareSuggestions = (a: Suggestion, b: Suggestion): number => {
 	return (a.rank || 0) - (b.rank || 0);
 }
+
+const sortSuggestions = (a,b): number => {
+	if (a.rank && b.rank){
+		const rankDiff = -(a.rank - b.rank);
+		if (rankDiff) {
+			return rankDiff;
+		}
+	}
+	else if (a.rank && !b.rank)
+		return -1;
+	else if (b.rank && !a.rank)
+		return -1
+	return a.name.localeCompare(b.name);
+}
+
 const querySuggestionFilter = (query: string) => {
 	return (s: Suggestion) => {
 		return s.name.startsWith(query);
@@ -20,13 +37,19 @@ const querySuggestionFilter = (query: string) => {
 const mapSuggestionToName = (s: Suggestion): string => s.name;
 
 function setValue(context: EditorSuggestContext, s: Suggestion) {
+	const squarePar = s.latex.indexOf('[');
+	const squigglePar = s.latex.indexOf('{');
+
 	const to = context.editor.getCursor();
 	const from: EditorPosition = {line: to.line, ch: to.ch - context.query.length};
 	console.log('Inserting...', context.query);
-	context.editor.replaceRange(s.latex, from, to);
-	if (!context.query)
-	{
-		context.editor.setCursor(to.line, to.ch + s.latex.length);
+	context.editor.replaceRange(s.latex.concat(' '), from, to);
+	if (!context.query) {
+		context.editor.setCursor(to.line, to.ch + s.latex.length + 1);
+	}
+	else if (squarePar != -1 || squigglePar != -1){
+		squarePar != -1 && squigglePar != -1 ? context.editor.setCursor(to.line, to.ch + Math.min(squarePar, squigglePar)) :
+		context.editor.setCursor(to.line, to.ch + Math.max(squarePar, squigglePar));
 	}
 }
 
@@ -80,7 +103,7 @@ class MathjaxSuggest extends EditorSuggest<Suggestion> {
 	private _filteredSuggestionList: Suggestion[] = [];
 	private _statusBar: HTMLElement;
 	onAddSuggestion: (s: Suggestion) => void;
-	limit = 5;
+	limit = suggestLimit;
 
 	constructor(app: App, suggestionList: Suggestion[], statusBar: HTMLElement, onAddSuggestion: (s: Suggestion) => void) {
 		super(app);
@@ -104,8 +127,15 @@ class MathjaxSuggest extends EditorSuggest<Suggestion> {
 			});
 			modal.open();
 		}
+		// else if (value.showMore)
+		// {
+		// 	this.limit = this._filteredSuggestionList.length;
+		// 	return;
+		// }
 		else if (this.context?.editor) {
 			setValue(this.context, value);
+			value.rank ? value.rank++ : value.rank = 1;
+			console.log("rank of " + value.name + " is: " + value.rank);
 		}
     }
 
@@ -117,7 +147,16 @@ class MathjaxSuggest extends EditorSuggest<Suggestion> {
 		this._filteredSuggestionList = this._filteredSuggestionList.filter((suggestion :Suggestion) =>{
 			console.log(suggestion.name.startsWith(context.query));return suggestion.name.startsWith(context.query)});
 		this._last_query = context.query;
-		return this._filteredSuggestionList.length > 0 ? this._filteredSuggestionList :
+
+		// if (this._filteredSuggestionList.length > this.limit)
+		// {
+		// 	const merge  = (a: Suggestion[], b: Suggestion, i=0) => [...a.slice(0, i), b, ...a.slice(i)];
+		// 	const showMore = merge(this._filteredSuggestionList, {name: "...", latex: "...", showMore: true}, this.limit - 1);
+		// 	console.log(showMore);
+		// 	return showMore;
+		// }
+		
+		return this._filteredSuggestionList.length > 0 ? this._filteredSuggestionList.slice(0, this.limit).sort(sortSuggestions) :
 			[{name: `add ${context.query}`, latex: "", isNew: true}];
 	}
 

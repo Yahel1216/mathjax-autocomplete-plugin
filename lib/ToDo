@@ -1,0 +1,13 @@
+Work on next:
+	- create ranking system for selected suggestions.
+
+Thing to do:
+	- work on math-mode enter and exit.
+	- detecting when inside math-mode.
+	- create a way to expand how many suggestions are shown.
+	- maybe add a setting for length of shown suggestions.
+	- find way to add a keyboard event (move to other set of parenthesis, exit math-mode, etc)
+
+Done:
+	X after selection of suggestion add space
+	X set cursor on correct parenthesis (first pair)

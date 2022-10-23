@@ -1,14 +1,16 @@
 import {App, Editor, EditorSuggest, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting} from 'obsidian';
-import {MathJaxAutoSettings, DEFAULT_SETTINGS, Suggestion} from 'lib/settings'
+import {MathJaxAutoSettings, DEFAULT_SETTINGS, Suggestion, RankSetting} from 'lib/settings'
 import {MathjaxSuggest} from "./lib/mathjax-suggest";
 
 export default class MathjaxObsidianPlugin extends Plugin {
 	settings: MathJaxAutoSettings;
+	rankSetting : RankSetting;
 	statusBarElem: HTMLElement;
 	isInMathMode: boolean = false;
 
 	async onload() {
 		await this.loadSettings();
+		this.addSettingTab(new SettingTab(this.app, this));
 		// This adds an editor command that can perform some operation on the current editor instance
 		this.addCommand({
 			id: 'simple-math-mode-command',
@@ -66,10 +68,44 @@ export default class MathjaxObsidianPlugin extends Plugin {
 	}
 	async loadSettings() {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		this.rankSetting = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
 	}
 	async saveSettings() {
 		await this.saveData(this.settings);
+		await this.saveData(this.rankSetting);
 	}
 }
 
+const clearRankings = (suggestions: Suggestion[]): void => {
+	suggestions.forEach((suggestion: Suggestion) => suggestion.rank = undefined);
+}
 
+export class SettingTab extends PluginSettingTab {
+	plugin: MathjaxObsidianPlugin;
+
+	constructor(app: App, plugin: MathjaxObsidianPlugin) {
+		super(app, plugin);
+		this.plugin = plugin;
+	}
+
+	display(): void {
+    const { containerEl } = this;
+    containerEl.empty();
+
+    new Setting(containerEl)
+		.setName("Clear rankings")
+      	.setDesc("Clears all previous rankings for latex commands")
+		.addButton((btn) =>
+			btn
+				.setButtonText("Clear")
+				.setCta()
+				.onClick(() => {
+					clearRankings(this.plugin.settings.suggestionList);
+					btn.buttonEl.setAttribute('style', ' background: darkgreen;' +
+						'-webkit-box-shadow: inset 0px 0px 5px #c1c1c1;' +
+						'     -moz-box-shadow: inset 0px 0px 5px #c1c1c1;' +
+						'          box-shadow: inset 0px 0px 5px #c1c1c1;' +
+						'   outline: none;')
+				}));
+  }
+}
